@@ -89,9 +89,21 @@ class ModelListGP(IndependentModelList, ModelListGPyTorchModel):
                     "The shape of observation noise does not agree with the outcomes. "
                     f"Received {noise.shape} noise with {Y.shape} outcomes."
                 )
+
             kwargs_ = {**kwargs, "noise": [noise[..., i] for i in range(Y.shape[-1])]}
         else:
             kwargs_ = kwargs
+
+        # Apply the outcome transform for each model (JACK)
+        for i in range(self.num_outputs):
+            if hasattr(self.models[i], "outcome_transform"):
+                if "noise" in kwargs_:
+                    targets[i], kwargs_["noise"][i] = self.models[i].outcome_transform(
+                        targets[i], kwargs_["noise"][i]
+                    )
+                else:
+                    targets[i], _ = self.models[i].outcome_transform(targets[i], None)
+
         return super().get_fantasy_model(X, targets, **kwargs_)
 
     def subset_output(self, idcs: List[int]) -> ModelListGP:
